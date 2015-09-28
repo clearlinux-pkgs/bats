@@ -4,7 +4,7 @@
 #
 Name     : bats
 Version  : 0.4.0
-Release  : 4
+Release  : 5
 URL      : https://github.com/sstephenson/bats/archive/v0.4.0.tar.gz
 Source0  : https://github.com/sstephenson/bats/archive/v0.4.0.tar.gz
 Summary  : No detailed summary available
