@@ -1,0 +1,150 @@
+From 685cd9fb2b23fced05311e88d10ddc2f6525683a Mon Sep 17 00:00:00 2001
+From: Tim Harsch <tharsch@yarcdata.com>
+Date: Fri, 29 Jul 2016 19:26:29 -0500
+Subject: [PATCH 1/4] Adding test duration in ms using YAML extension to TAP
+ format
+
+---
+ libexec/bats            |  5 ++++-
+ libexec/bats-exec-suite |  8 +++++++-
+ libexec/bats-exec-test  | 19 +++++++++++++++++--
+ test/bats.bats          | 19 +++++++++++++++++++
+ 4 files changed, 47 insertions(+), 4 deletions(-)
+
+diff --git a/libexec/bats b/libexec/bats
+index 71f392f..85cdf61 100755
+--- a/libexec/bats
++++ b/libexec/bats
+@@ -96,6 +96,9 @@ for option in "${options[@]}"; do
+   "t" | "tap" )
+     pretty=""
+     ;;
++  "d" )
++    durations_flag="-d"
++    ;;
+   "p" | "pretty" )
+     pretty="1"
+     ;;
+@@ -139,4 +142,4 @@ else
+ fi
+ 
+ set -o pipefail execfail
+-exec "$command" $count_flag $extended_syntax_flag "${filenames[@]}" | "$formatter"
++exec "$command" $count_flag $extended_syntax_flag $durations_flag "${filenames[@]}" | "$formatter"
+diff --git a/libexec/bats-exec-suite b/libexec/bats-exec-suite
+index 29ab255..772b91d 100755
+--- a/libexec/bats-exec-suite
++++ b/libexec/bats-exec-suite
+@@ -13,6 +13,12 @@ if [ "$1" = "-x" ]; then
+   shift
+ fi
+ 
++durations_flag=""
++if [ "$1" = "-d" ]; then
++  durations_flag="-d"
++  shift
++fi
++
+ trap "kill 0; exit 1" int
+ 
+ count=0
+@@ -48,7 +54,7 @@ for filename in "$@"; do
+         ;;
+       esac
+     done
+-  } < <( bats-exec-test $extended_syntax_flag "$filename" )
++  } < <( bats-exec-test $extended_syntax_flag $durations_flag "$filename" )
+   offset=$(($offset + $index))
+ done
+ 
+diff --git a/libexec/bats-exec-test b/libexec/bats-exec-test
+index 8f3bd51..6839b54 100755
+--- a/libexec/bats-exec-test
++++ b/libexec/bats-exec-test
+@@ -15,6 +15,12 @@ if [ "$1" = "-x" ]; then
+   shift
+ fi
+ 
++BATS_RECORD_DURATIONS=""
++if [ "$1" = "-d" ]; then
++  BATS_RECORD_DURATIONS=$1
++  shift
++fi
++
+ BATS_TEST_FILENAME="$1"
+ if [ -z "$BATS_TEST_FILENAME" ]; then
+   echo "usage: bats-exec <filename>" >&2
+@@ -236,6 +242,8 @@ bats_teardown_trap() {
+     BATS_ERROR_STACK_TRACE=( "${BATS_CURRENT_STACK_TRACE[@]}" )
+   fi
+ 
++  BATS_TEST_DURATION=$(( $(date +%s%N) / 1000000 - BATS_TEST_START_TIME ))
++
+   bats_exit_trap
+ }
+ 
+@@ -263,6 +271,12 @@ bats_exit_trap() {
+     status=0
+   fi
+ 
++  if [[ -n $BATS_RECORD_DURATIONS && -n $BATS_TEST_DURATION ]]; then
++    echo "  ---" >&3
++    echo "    duration_ms: $BATS_TEST_DURATION" >&3
++    echo "  ..." >&3
++  fi
++
+   rm -f "$BATS_OUT"
+   exit "$status"
+ }
+@@ -272,7 +286,7 @@ bats_perform_tests() {
+   test_number=1
+   status=0
+   for test_name in "$@"; do
+-    "$0" $BATS_EXTENDED_SYNTAX "$BATS_TEST_FILENAME" "$test_name" "$test_number" || status=1
++    "$0" $BATS_EXTENDED_SYNTAX $BATS_RECORD_DURATIONS "$BATS_TEST_FILENAME" "$test_name" "$test_number" || status=1
+     let test_number+=1
+   done
+   exit "$status"
+@@ -288,10 +302,11 @@ bats_perform_test() {
+     fi
+ 
+     BATS_TEST_COMPLETED=""
++    BATS_TEST_START_TIME=$(($(date +%s%N)/1000000))
+     BATS_TEARDOWN_COMPLETED=""
+     trap "bats_debug_trap \"\$BASH_SOURCE\"" debug
+     trap "bats_error_trap" err
+-    trap "bats_teardown_trap" exit
++    trap "bats_teardown_trap $BATS_RECORD_DURATIONS" exit
+     "$BATS_TEST_NAME" >>"$BATS_OUT" 2>&1
+     BATS_TEST_COMPLETED=1
+ 
+diff --git a/test/bats.bats b/test/bats.bats
+index f1aff29..77a682d 100755
+--- a/test/bats.bats
++++ b/test/bats.bats
+@@ -262,3 +262,22 @@ fixtures bats
+   [ $status -eq 0 ]
+   [ "${lines[1]}" = "ok 1 loop_func" ]
+ }
++
++@test "tests with durations" {
++  run bats -d $FIXTURE_ROOT/passing_failing_and_skipping.bats
++  [ "$status" -eq 1 ]
++  
++  [ "${lines[1]}"       =  'ok 1 a passing test' ]
++  [ "${lines[2]}"       =  '  ---' ]
++  [ "${lines[3]:0:17}"  =  '    duration_ms: ' ]
++  [ "${lines[4]}"       =  '  ...' ]
++  [ "${lines[5]}"       =  'ok 2 # skip a skipping test' ]
++  [ "${lines[6]}"       =  '  ---' ]
++  [ "${lines[7]:0:17}"  =  '    duration_ms: ' ]
++  [ "${lines[8]}"       =  '  ...' ]
++  [ "${lines[9]}"       =  'not ok 3 a failing test' ]
++  [ "${lines[10]:0:15}"      =  '# (in test file' ]
++  [ "${lines[12]}"      =  '  ---' ]
++  [ "${lines[13]:0:17}" =  '    duration_ms: ' ]
++  [ "${lines[14]}"      =  '  ...' ]
++}
+-- 
+2.10.2
+
