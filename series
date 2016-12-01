@@ -3,3 +3,4 @@ makefile.patch
 0002-add-to-usage.-no-timings-for-extended-format.patch
 0003-added-description-of-d-parameter-to-README.patch
 0004-make-duration-calculation-safe-on-systems-where-date.patch
+0005-Option-to-run-tests-names-matching-a-pattern.patch

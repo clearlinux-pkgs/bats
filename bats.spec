@@ -4,7 +4,7 @@
 #
 Name     : bats
 Version  : 0.4.0
-Release  : 8
+Release  : 9
 URL      : https://github.com/sstephenson/bats/archive/v0.4.0.tar.gz
 Source0  : https://github.com/sstephenson/bats/archive/v0.4.0.tar.gz
 Summary  : No detailed summary available
@@ -17,6 +17,7 @@ Patch2: 0001-Adding-test-duration-in-ms-using-YAML-extension-to-T.patch
 Patch3: 0002-add-to-usage.-no-timings-for-extended-format.patch
 Patch4: 0003-added-description-of-d-parameter-to-README.patch
 Patch5: 0004-make-duration-calculation-safe-on-systems-where-date.patch
+Patch6: 0005-Option-to-run-tests-names-matching-a-pattern.patch
 
 %description
 # Bats: Bash Automated Testing System
@@ -47,6 +48,7 @@ doc components for the bats package.
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
+%patch6 -p1
 
 %build
 export LANG=C
