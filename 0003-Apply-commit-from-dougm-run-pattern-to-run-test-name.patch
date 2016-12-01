@@ -1,11 +1,9 @@
-From 3a18dbbf7cf95d9d9fbdc38911a755e657fe7695 Mon Sep 17 00:00:00 2001
-From: Doug MacEachern <dougm@vmware.com>
-Date: Thu, 6 Nov 2014 18:45:34 -0800
-Subject: [PATCH] Option to run tests names matching a pattern.
+From 6dd205804ef31f1ffc6dd50970648da2752ca2cc Mon Sep 17 00:00:00 2001
+From: "Kramer, George T" <george.t.kramer@intel.com>
+Date: Wed, 30 Nov 2016 18:50:19 -0800
+Subject: [PATCH 3/3] Apply commit from dougm/run-pattern to run test names
+ matching a pattern
 
-The option can be set using the BATS_TEST_PATTERN env var.
-
-TODO: Add bats cli option
 ---
  libexec/bats-preprocess | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)

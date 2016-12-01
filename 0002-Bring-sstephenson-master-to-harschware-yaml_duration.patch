@@ -1,21 +1,54 @@
-From 685cd9fb2b23fced05311e88d10ddc2f6525683a Mon Sep 17 00:00:00 2001
-From: Tim Harsch <tharsch@yarcdata.com>
-Date: Fri, 29 Jul 2016 19:26:29 -0500
-Subject: [PATCH 1/4] Adding test duration in ms using YAML extension to TAP
- format
+From 3aba37a5a2e88f78cf3be16914a3320e81a83cb0 Mon Sep 17 00:00:00 2001
+From: "Kramer, George T" <george.t.kramer@intel.com>
+Date: Wed, 30 Nov 2016 18:44:00 -0800
+Subject: [PATCH 2/3] Bring sstephenson/master to harschware/yaml_durations to
+ add duration for each test to TAP output in YAML
 
 ---
- libexec/bats            |  5 ++++-
+ README.md               | 13 +++++++++++++
+ libexec/bats            |  6 +++++-
  libexec/bats-exec-suite |  8 +++++++-
- libexec/bats-exec-test  | 19 +++++++++++++++++--
+ libexec/bats-exec-test  | 31 +++++++++++++++++++++++++++++--
  test/bats.bats          | 19 +++++++++++++++++++
- 4 files changed, 47 insertions(+), 4 deletions(-)
+ 5 files changed, 73 insertions(+), 4 deletions(-)
 
+diff --git a/README.md b/README.md
+index 235bf1e..8692fb9 100644
+--- a/README.md
++++ b/README.md
+@@ -61,6 +61,19 @@ You can force TAP output from a terminal by invoking Bats with the
+     ok 1 addition using bc
+     ok 2 addition using dc
+ 
++Additionally, using the -d parameter, you can time your tests and output the test durations in a common TAP extension format: YAML-ish.  Use this in conjuction with the [Jenkins TAP Plugin](https://wiki.jenkins-ci.org/display/JENKINS/TAP+Plugin) to display your test times!
++
++    $ bats --tap -d addition.bats
++    1..2
++    ok 1 addition using bc
++      ---
++        duration_ms: 21
++      ...
++    ok 2 addition using dc
++      ---
++        duration_ms: 22
++      ...
++
+ ### Test suites
+ 
+ You can invoke the `bats` interpreter with multiple test file
 diff --git a/libexec/bats b/libexec/bats
-index 71f392f..85cdf61 100755
+index 71f392f..cdd378f 100755
 --- a/libexec/bats
 +++ b/libexec/bats
-@@ -96,6 +96,9 @@ for option in "${options[@]}"; do
+@@ -20,6 +20,7 @@ help() {
+   echo "  -h, --help     Display this help message"
+   echo "  -p, --pretty   Show results in pretty format (default for terminals)"
+   echo "  -t, --tap      Show results in TAP format"
++  echo "  -d             Durations for TAP output with YAML format"
+   echo "  -v, --version  Display the version number"
+   echo
+   echo "  For more information, see https://github.com/sstephenson/bats"
+@@ -96,6 +97,9 @@ for option in "${options[@]}"; do
    "t" | "tap" )
      pretty=""
      ;;
@@ -25,7 +58,7 @@ index 71f392f..85cdf61 100755
    "p" | "pretty" )
      pretty="1"
      ;;
-@@ -139,4 +142,4 @@ else
+@@ -139,4 +143,4 @@ else
  fi
  
  set -o pipefail execfail
@@ -58,7 +91,7 @@ index 29ab255..772b91d 100755
  done
  
 diff --git a/libexec/bats-exec-test b/libexec/bats-exec-test
-index 8f3bd51..6839b54 100755
+index 8f3bd51..ab411d9 100755
 --- a/libexec/bats-exec-test
 +++ b/libexec/bats-exec-test
 @@ -15,6 +15,12 @@ if [ "$1" = "-x" ]; then
@@ -74,20 +107,39 @@ index 8f3bd51..6839b54 100755
  BATS_TEST_FILENAME="$1"
  if [ -z "$BATS_TEST_FILENAME" ]; then
    echo "usage: bats-exec <filename>" >&2
-@@ -236,6 +242,8 @@ bats_teardown_trap() {
+@@ -224,6 +230,18 @@ bats_error_trap() {
+   trap - debug
+ }
+ 
++
++get_mills_since_epoch() {
++  local ms_since_epoch=$(date +%s%N)
++  if [[ "$ms_since_epoch" == *N ]]; then
++        ms_since_epoch=$(( $(date +%s) * 1000 ))
++  else
++        ms_since_epoch=$(( ms_since_epoch / 1000000 ))
++  fi
++
++  echo $ms_since_epoch
++}
++
+ bats_teardown_trap() {
+   trap "bats_exit_trap" exit
+   local status=0
+@@ -236,6 +254,8 @@ bats_teardown_trap() {
      BATS_ERROR_STACK_TRACE=( "${BATS_CURRENT_STACK_TRACE[@]}" )
    fi
  
-+  BATS_TEST_DURATION=$(( $(date +%s%N) / 1000000 - BATS_TEST_START_TIME ))
++  BATS_TEST_DURATION=$(( $(get_mills_since_epoch) - BATS_TEST_START_TIME ))
 +
    bats_exit_trap
  }
  
-@@ -263,6 +271,12 @@ bats_exit_trap() {
+@@ -263,6 +283,12 @@ bats_exit_trap() {
      status=0
    fi
  
-+  if [[ -n $BATS_RECORD_DURATIONS && -n $BATS_TEST_DURATION ]]; then
++  if [[ -z $BATS_EXTENDED_SYNTAX && -n $BATS_RECORD_DURATIONS && -n $BATS_TEST_DURATION ]]; then
 +    echo "  ---" >&3
 +    echo "    duration_ms: $BATS_TEST_DURATION" >&3
 +    echo "  ..." >&3
@@ -96,7 +148,7 @@ index 8f3bd51..6839b54 100755
    rm -f "$BATS_OUT"
    exit "$status"
  }
-@@ -272,7 +286,7 @@ bats_perform_tests() {
+@@ -272,7 +298,7 @@ bats_perform_tests() {
    test_number=1
    status=0
    for test_name in "$@"; do
@@ -105,11 +157,11 @@ index 8f3bd51..6839b54 100755
      let test_number+=1
    done
    exit "$status"
-@@ -288,10 +302,11 @@ bats_perform_test() {
+@@ -288,10 +314,11 @@ bats_perform_test() {
      fi
  
      BATS_TEST_COMPLETED=""
-+    BATS_TEST_START_TIME=$(($(date +%s%N)/1000000))
++    BATS_TEST_START_TIME=$(get_mills_since_epoch)
      BATS_TEARDOWN_COMPLETED=""
      trap "bats_debug_trap \"\$BASH_SOURCE\"" debug
      trap "bats_error_trap" err
