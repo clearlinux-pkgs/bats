@@ -4,7 +4,7 @@
 #
 Name     : bats
 Version  : 1.1.0
-Release  : 15
+Release  : 16
 URL      : https://github.com/bats-core/bats-core/archive/v1.1.0.tar.gz
 Source0  : https://github.com/bats-core/bats-core/archive/v1.1.0.tar.gz
 Summary  : Battery status in the console
@@ -15,7 +15,6 @@ Requires: bats-libexec = %{version}-%{release}
 Requires: bats-license = %{version}-%{release}
 Requires: bats-man = %{version}-%{release}
 Patch1: makefile.patch
-Patch2: jobcontrol.patch
 
 %description
 Bats is a TAP-compliant testing framework for Bash.
@@ -60,19 +59,18 @@ man components for the bats package.
 %prep
 %setup -q -n bats-core-1.1.0
 %patch1 -p1
-%patch2 -p1
 
 %build
 export http_proxy=http://127.0.0.1:9/
 export https_proxy=http://127.0.0.1:9/
 export no_proxy=localhost,127.0.0.1,0.0.0.0
 export LANG=C
-export SOURCE_DATE_EPOCH=1556593579
+export SOURCE_DATE_EPOCH=1556594931
 make  %{?_smp_mflags}
 
 
 %install
-export SOURCE_DATE_EPOCH=1556593579
+export SOURCE_DATE_EPOCH=1556594931
 rm -rf %{buildroot}
 mkdir -p %{buildroot}/usr/share/package-licenses/bats
 cp LICENSE.md %{buildroot}/usr/share/package-licenses/bats/LICENSE.md
