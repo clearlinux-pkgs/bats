@@ -4,7 +4,7 @@
 #
 Name     : bats
 Version  : 1.1.0
-Release  : 16
+Release  : 17
 URL      : https://github.com/bats-core/bats-core/archive/v1.1.0.tar.gz
 Source0  : https://github.com/bats-core/bats-core/archive/v1.1.0.tar.gz
 Summary  : Battery status in the console
