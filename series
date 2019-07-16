@@ -1,5 +1,1 @@
 makefile.patch
-#0001-Bring-0.4.0-tag-to-sstephenson-master.patch
-#0002-Bring-sstephenson-master-to-harschware-yaml_duration.patch
-#0003-Apply-commit-from-dougm-run-pattern-to-run-test-name.patch
-#jobcontrol.patch
