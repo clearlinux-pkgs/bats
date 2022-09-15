@@ -1,2 +1,2 @@
 # From Arch Linux PKGBUILD...
-TERM=linux bin/bats --tap test
+TERM=linux bin/bats --print-output-on-failure --tap test
