@@ -4,7 +4,7 @@
 #
 Name     : bats
 Version  : 1.8.0
-Release  : 26
+Release  : 27
 URL      : https://github.com/bats-core/bats-core/archive/v1.8.0/bats-core-1.8.0.tar.gz
 Source0  : https://github.com/bats-core/bats-core/archive/v1.8.0/bats-core-1.8.0.tar.gz
 Summary  : Bash Automated Testing System
@@ -18,6 +18,7 @@ Requires: procps-ng
 BuildRequires : ncurses-bin
 BuildRequires : procps-ng
 Patch1: makefile.patch
+Patch2: backport-fix-bash-compat.patch
 
 %description
 Bats is a TAP-compliant testing framework for Bash.
@@ -63,13 +64,14 @@ man components for the bats package.
 %setup -q -n bats-core-1.8.0
 cd %{_builddir}/bats-core-1.8.0
 %patch1 -p1
+%patch2 -p1
 
 %build
 export http_proxy=http://127.0.0.1:9/
 export https_proxy=http://127.0.0.1:9/
 export no_proxy=localhost,127.0.0.1,0.0.0.0
 export LANG=C.UTF-8
-export SOURCE_DATE_EPOCH=1663212967
+export SOURCE_DATE_EPOCH=1664740547
 export GCC_IGNORE_WERROR=1
 export CFLAGS="$CFLAGS -fno-lto "
 export FCFLAGS="$FFLAGS -fno-lto "
@@ -87,7 +89,7 @@ export no_proxy=localhost,127.0.0.1,0.0.0.0
 TERM=linux bin/bats --print-output-on-failure --tap test
 
 %install
-export SOURCE_DATE_EPOCH=1663212967
+export SOURCE_DATE_EPOCH=1664740547
 rm -rf %{buildroot}
 mkdir -p %{buildroot}/usr/share/package-licenses/bats
 cp %{_builddir}/bats-core-%{version}/LICENSE.md %{buildroot}/usr/share/package-licenses/bats/1c44d90b844121642b1219f25b6b8ea3240f8cb9

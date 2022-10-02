@@ -1,0 +1,155 @@
+From 7feaa5fdea41d75ef6eb81f529743ce1aa8fb445 Mon Sep 17 00:00:00 2001
+From: Martin Schulze <martin.schulze@vireso.de>
+Date: Sun, 18 Sep 2022 21:38:05 +0200
+Subject: [PATCH 2/7] Fix kernel debug messages (fixes #654)
+
+due to wait in wait because of read in trap
+---
+ lib/bats-core/tracing.bash | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/lib/bats-core/tracing.bash b/lib/bats-core/tracing.bash
+index 8e1e8d81a1..1af459f95a 100644
+--- a/lib/bats-core/tracing.bash
++++ b/lib/bats-core/tracing.bash
+@@ -382,8 +382,7 @@ bats_interrupt_trap() {
+   BATS_INTERRUPTED=true
+   BATS_ERROR_STATUS=130
+   # debug trap fires before interrupt trap but gets wrong linenumber (line 1)
+-  # -> use last stack trace
+-  exit $BATS_ERROR_STATUS
++  # -> use last stack trace instead of BATS_DEBUG_LAST_STACK_TRACE_IS_VALID=true
+ }
+ 
+ # this is used inside run()
+@@ -392,5 +391,4 @@ bats_interrupt_trap_in_run() {
+   BATS_INTERRUPTED=true
+   BATS_ERROR_STATUS=130
+   BATS_DEBUG_LAST_STACK_TRACE_IS_VALID=true
+-  exit $BATS_ERROR_STATUS
+ }
+
+From 52660691b1560c2636fc19fc19fe0b9e51b15285 Mon Sep 17 00:00:00 2001
+From: Martin Schulze <martin.schulze@vireso.de>
+Date: Sun, 18 Sep 2022 21:38:30 +0200
+Subject: [PATCH 3/7] Ensure code after SIGINT does not run
+
+---
+ test/bats.bats                       | 2 ++
+ test/fixtures/bats/hang_in_test.bats | 1 +
+ 2 files changed, 3 insertions(+)
+
+diff --git a/test/bats.bats b/test/bats.bats
+index 274f40caf6..8cfca8154a 100755
+--- a/test/bats.bats
++++ b/test/bats.bats
+@@ -781,8 +781,10 @@ END_OF_ERR_MSG
+ 
+   [ "${lines[1]}" == "not ok 1 test" ]
+   # due to scheduling the exact line will vary but we should exit with 130
++  [[ "${lines[2]}" == "# (in test file "*")" ]] || false  
+   [[ "${lines[3]}" == *"failed with status 130" ]] || false
+   [ "${lines[4]}" == "# Received SIGINT, aborting ..." ]
++  [ ${#lines[@]} -eq 5 ]
+ }
+ 
+ @test "CTRL-C aborts and fails the current run" {
+diff --git a/test/fixtures/bats/hang_in_test.bats b/test/fixtures/bats/hang_in_test.bats
+index 40fdf8838b..13b5e32a8c 100644
+--- a/test/fixtures/bats/hang_in_test.bats
++++ b/test/fixtures/bats/hang_in_test.bats
+@@ -3,6 +3,7 @@ setup() {
+ }
+ 
+ @test "test" {
+-    single-use-latch::signal hang_in_test
+-    sleep 10
+-}
+\ No newline at end of file
++  single-use-latch::signal hang_in_test
++  sleep 10
++  echo "after sleep" # this should not be printed
++}
+
+From 24a4ecbceff3ddbb410a3d2c301f8c521e6defb1 Mon Sep 17 00:00:00 2001
+From: Martin Schulze <martin.schulze@vireso.de>
+Date: Fri, 23 Sep 2022 23:40:36 +0200
+Subject: [PATCH 4/7] junit: Fix xml_escape for Bash 5.2 RC
+
+From [Bash 5.2 release notes](https://mail.gnu.org/archive/html/bug-bash/2022-07/msg00129.html):
+x. New shell option: patsub_replacement. When enabled, a `&' in the replacement
+   string of the pattern substitution expansion is replaced by the portion of
+   the string that matched the pattern. Backslash will escape the `&' and
+   insert a literal `&'.
+---
+ libexec/bats-core/bats-format-junit | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/libexec/bats-core/bats-format-junit b/libexec/bats-core/bats-format-junit
+index 79acdf2a7c..de149e0f5f 100755
+--- a/libexec/bats-core/bats-format-junit
++++ b/libexec/bats-core/bats-format-junit
+@@ -98,13 +98,13 @@ print_test_case() {
+ }
+ 
+ xml_escape() {
+-  output=${1//&/&amp;}
+-  output=${output//</&lt;}
+-  output=${output//>/&gt;}
+-  output=${output//'"'/&quot;}
+-  output=${output//\'/&#39;}
++  output=${1//&/\&amp;}
++  output=${output//</\&lt;}
++  output=${output//>/\&gt;}
++  output=${output//'"'/\&quot;}
++  output=${output//\'/\&#39;}
+   local CONTROL_CHAR=$'\033'
+-  output="${output//$CONTROL_CHAR/&#27;}"
++  output="${output//$CONTROL_CHAR/\&#27;}"
+   printf "%s" "$output"
+ }
+ 
+
+From bf7b7e803a553e888dd43d18ed6d005c66a1bf55 Mon Sep 17 00:00:00 2001
+From: Martin Schulze <martin.schulze@vireso.de>
+Date: Fri, 23 Sep 2022 23:55:39 +0200
+Subject: [PATCH 6/7] junit: Fix control char escaping in Bash <4.3
+
+Otherwise would contain the \
+---
+ libexec/bats-core/bats-format-junit | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libexec/bats-core/bats-format-junit b/libexec/bats-core/bats-format-junit
+index de149e0f5f..5436157e05 100755
+--- a/libexec/bats-core/bats-format-junit
++++ b/libexec/bats-core/bats-format-junit
+@@ -104,7 +104,7 @@ xml_escape() {
+   output=${output//'"'/\&quot;}
+   output=${output//\'/\&#39;}
+   local CONTROL_CHAR=$'\033'
+-  output="${output//$CONTROL_CHAR/\&#27;}"
++  output=${output//$CONTROL_CHAR/\&#27;}
+   printf "%s" "$output"
+ }
+ 
+
+From 57c63524b3141a09ef570dc2451f6522dc6019a5 Mon Sep 17 00:00:00 2001
+From: Martin Schulze <martin.schulze@vireso.de>
+Date: Sat, 24 Sep 2022 01:46:34 +0200
+Subject: [PATCH 7/7] Fix CTRL+C on run test for Bash 4.3
+
+---
+ lib/bats-core/tracing.bash | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/lib/bats-core/tracing.bash b/lib/bats-core/tracing.bash
+index 1af459f95a..2ad7561fc0 100644
+--- a/lib/bats-core/tracing.bash
++++ b/lib/bats-core/tracing.bash
+@@ -391,4 +391,5 @@ bats_interrupt_trap_in_run() {
+   BATS_INTERRUPTED=true
+   BATS_ERROR_STATUS=130
+   BATS_DEBUG_LAST_STACK_TRACE_IS_VALID=true
++  exit 130
+ }
